@@ -1,0 +1,16 @@
+Metadata-Version: 2.4
+Name: dataset-weighting-nn
+Version: 0.1.0
+Requires-Python: <3.12,>=3.9
+Requires-Dist: numpy>=1.26
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: tqdm>=4.66
+Requires-Dist: pillow>=10.0
+Requires-Dist: torch>=2.1
+Requires-Dist: boto3
+Requires-Dist: botocore
+Requires-Dist: matplotlib
+Provides-Extra: faiss
+Requires-Dist: faiss-cpu>=1.7.4; (platform_system == "Linux" and python_version < "3.12") and extra == "faiss"
+Provides-Extra: faiss-gpu
+Requires-Dist: faiss-gpu==1.7.2; (platform_system == "Linux" and python_version < "3.12") and extra == "faiss-gpu"

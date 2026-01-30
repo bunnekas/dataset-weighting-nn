@@ -1,0 +1,4 @@
+[console_scripts]
+dw-aggregate-weights = dw.cli.aggregate_weights:main
+dw-extract-embeddings = dw.cli.extract_embeddings:main
+dw-retrieve-1nn = dw.cli.retrieval_1nn:main

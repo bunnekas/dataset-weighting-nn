@@ -1,0 +1,21 @@
+# artifacts / large files
+artifacts/
+*.npy
+*.npz
+
+# python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# env / ide
+.venv/
+.env
+.vscode/
+.idea/
+
+# os junk
+.DS_Store
+__MACOSX/
