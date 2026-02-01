@@ -68,33 +68,37 @@ We use OpenImages v7 train (1% subsample) as the reference set.
 python scripts/make_openimages_manifest.py \
   --csv path/to/image_ids_and_rotation.csv \
   --split train \
-  --fraction 0.01 \
+  --fraction 0.07 \
   --seed 0 \
-  --out path/to/openimgs/manifest_seed0.txt
+  --out path/to/openimgs/manifest600k.txt
 ```
-Output: `manifest_seed0.txt`
+Output: `manifest600k.txt`
 
 ### 3) Download images referenced by the manifest
 ```bash
 python scripts/openimages_downloader.py \
-  --image_list path/to/manifest_seed0.txt \
+  path/to/openimgs/manifest600k.txt \
   --download_folder path/to/openimgs/images \
-  --num_processes 32
+  --target 10000 \
+  --num_workers 32 \
+  --count_existing \
+  --success_manifest_out path/to/openimgs/manifest.txt
 ```
 **Notes:**
 - HTTP 404s are expected; missing images are skipped.
+- The `--target` flag controls how many images to download.
 - Downstream embedding and retrieval only operate on successfully downloaded images.
-- The manifest defines the intended reference set; the downloaded files define the actual reference set.
+- The success manifest (manifest.txt) contains the actual downloaded images.
 
 ### 4) Extract OpenImages embeddings (reference)
 
 ```bash
 dw-extract-embeddings \
   --config configs/default.yaml \
-  --dataset openimgs \
+  --dataset openimages \
   --adapter openimages_manifest \
-  --manifest /path/to/manifest_seed0.txt \
-  --root /path/to/openimgs/images
+  --manifest path/to/openimgs/manifest.txt \
+  --root path/to/openimgs/images
 ```
 
 ### 5) Extract candidate embeddings
@@ -105,7 +109,7 @@ dw-extract-embeddings \
   --config configs/default.yaml \
   --dataset hypersim \
   --adapter hypersim \
-  --root /path/to/hypersim/root
+  --root /path/to/hypersim
 ```
 
 **GTA-SfM**
@@ -114,7 +118,7 @@ dw-extract-embeddings \
   --config configs/default.yaml \
   --dataset gta_sfm \
   --adapter gta_sfm \
-  --root /path/to/gta_sfm/root
+  --root /path/to/gta_sfm
 ```
 
 **ScanNet++ (or any globbed image dataset)**
@@ -123,7 +127,7 @@ dw-extract-embeddings \
   --config configs/default.yaml \
   --dataset scannetpp \
   --adapter image_glob \
-  --root /path/to/scannetpp/root \
+  --root /path/to/scannetpp \
   --pattern "*/dslr/undistorted_images/*.JPG"
 ```
 
@@ -149,6 +153,8 @@ dw-aggregate-weights \
     artifacts/retrieval/openimgs/nn_sim.npy \
   --outdir artifacts/weights/openimgs
 ```
+
+Note: For a complete automated pipeline, see run_all.sh which orchestrates all steps.
 
 ## Artifacts layout (gitignored)
 
