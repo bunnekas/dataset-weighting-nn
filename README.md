@@ -137,7 +137,7 @@ dw-extract-embeddings \
 dw-retrieve-1nn \
   --ref_emb artifacts/embeddings/openimgs/emb_bf16.npy \
   --cand_emb artifacts/embeddings/hypersim/emb_bf16.npy \
-  --outdir artifacts/retrieval/openimgs_hypersim
+  --outdir artifacts/retrieval/hypersim
 ```
 
 Repeat for each candidate dataset.
@@ -151,7 +151,7 @@ dw-aggregate-weights \
     artifacts/retrieval/openimgs/nn_sim.npy \
     artifacts/retrieval/openimgs/nn_sim.npy \
     artifacts/retrieval/openimgs/nn_sim.npy \
-  --outdir artifacts/weights/openimgs
+  --outdir artifacts/weights
 ```
 
 Note: For a complete automated pipeline, see run_all.sh which orchestrates all steps.
