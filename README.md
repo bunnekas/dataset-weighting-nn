@@ -45,8 +45,13 @@ uv pip install -e /path/to/wai-clone
 ```
 
 FAISS is required for retrieval. Install one of:
-- `faiss-cpu`
-- `faiss-gpu` (if you want GPU indexing/search)
+```bash
+# CPU version (works everywhere)
+uv pip install faiss-cpu
+
+# OR GPU version (Linux only, requires NVIDIA GPU)
+uv pip install faiss-gpu
+```
 
 ## Run (end-to-end)
 

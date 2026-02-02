@@ -202,7 +202,7 @@ dw-aggregate-weights \
         "$ARTIFACTS_DIR/retrieval/hypersim/nn_sim.npy" \
         "$ARTIFACTS_DIR/retrieval/gta_sfm/nn_sim.npy" \
         "$ARTIFACTS_DIR/retrieval/scannetpp/nn_sim.npy" \
-    --outdir "$ARTIFACTS_DIR/weights/test"
+    --outdir "$ARTIFACTS_DIR/weights"
 
 # ============================================================================
 # COMPLETION
@@ -218,5 +218,5 @@ echo "Output summary:"
 echo "- OpenImages data: $IMAGE_DIR"
 echo "- Embeddings: $ARTIFACTS_DIR/embeddings/"
 echo "- Retrieval results: $ARTIFACTS_DIR/retrieval/"
-echo "- Final weights: $ARTIFACTS_DIR/weights/test/"
+echo "- Final weights: $ARTIFACTS_DIR/weights/"
 echo "======================================================================="
