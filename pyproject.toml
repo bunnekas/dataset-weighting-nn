@@ -3,7 +3,7 @@ name = "dataset-weighting-nn"
 version = "0.1.0"
 requires-python = ">=3.9,<3.12"
 dependencies = [
-  "numpy>=1.26",
+  "numpy>=1.26,<2",
   "pyyaml>=6.0",
   "tqdm>=4.66",
   "pillow>=10.0",
@@ -14,18 +14,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-faiss = [
-  "faiss-cpu>=1.7.4; platform_system == 'Linux' and python_version < '3.12'",
-]
-faiss-gpu = [
-  "faiss-gpu==1.7.2; platform_system == 'Linux' and python_version < '3.12'",
-]
+faiss-cpu = ["faiss-cpu>=1.7.4"]
+faiss-gpu = ["faiss-gpu>=1.7.2"]
 
 [project.scripts]
 dw-extract-embeddings = "dw.cli.extract_embeddings:main"
 dw-retrieve-1nn = "dw.cli.retrieval_1nn:main"
 dw-aggregate-weights = "dw.cli.aggregate_weights:main"
-
 
 [build-system]
 requires = ["setuptools>=68"]
