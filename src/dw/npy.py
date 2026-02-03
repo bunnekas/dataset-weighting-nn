@@ -3,22 +3,11 @@ from pathlib import Path
 import numpy as np
 
 
-def save_bf16(path: Path, a: np.ndarray) -> None:
-    """
-    Save embeddings in a compact dtype. Prefer bfloat16 if NumPy supports it,
-    otherwise fall back to float16 for portability.
-    """
-    path = Path(path)
-    a = np.asarray(a)
-
-    try:
-        bf16 = np.dtype("bfloat16")
-        out = a.astype(bf16)
-    except TypeError:
-        # NumPy without bf16 support (common on clusters)
-        out = a.astype(np.float16)
-
-    np.save(path, out)
+def save_fp16(path: Path, array: np.ndarray) -> None:
+    """Save array as float16."""
+    if array.dtype != np.float16:
+        array = array.astype(np.float16)
+    np.save(path, array)
 
 
 def load_for_faiss(path: Path) -> np.ndarray:
