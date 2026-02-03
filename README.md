@@ -4,61 +4,15 @@ Compute dataset mixing weights so that a training mixture best matches the distr
 
 We estimate weights via 1-NN retrieval in DINOv2 ViT-g/14 CLS embedding space, using OpenImages v7 train subsample as the reference distribution.
 
-## Protocol (invariants)
-
-**Embeddings**
-- Backbone: `facebookresearch/dinov2`, `dinov2_vitg14`
-- Token: CLS
-- Similarity: cosine via L2-normalized embeddings + FAISS IndexFlatIP
-- Storage: embeddings saved as bf16 (`emb_bf16.npy`), cast to float32 for FAISS
-
-**Image preprocessing**
-- Resize: max edge = 512 (no crop)
-- Pad: batches so H,W divisible by 14
-- Normalize: ImageNet mean/std
-
 ## Pipeline
 
-1) **Extract embeddings** for reference + each candidate dataset  
-2) **Retrieve 1-NN** from each candidate index for every reference embedding  
-3) **Aggregate weights**: each reference sample “votes” for the candidate with the highest similarity
+<details>
+<summary><b>Download reference dataset</b></summary>
+Download a representative subset as the reference distribution against which candidate datasets will be measured. We use OpenImages v7 train (1% subsample).
 
-Weights = win frequency over all reference queries.
+### Download `image_ids_and_rotation.csv`
 
-## Environment / Requirements
-
-This project is tested and intended to run on **Python 3.10.x**.
-
-**Python ≥ 3.12 is not supported** at the moment due to incompatibilities in
-the scientific stack (FAISS, torch / torchvision, and some dataset tooling).
-
-**Recommended version**: Python 3.10.14
-
-## Install
-
-```bash
-uv venv --python 3.10.14
-source .venv/bin/activate
-uv pip install -U pip
-uv pip install -e .
-uv pip install -e /path/to/wai-clone
-```
-
-FAISS is required for retrieval. Install one of:
-```bash
-# CPU version (works everywhere)
-uv pip install faiss-cpu
-
-# OR GPU version (Linux only, requires NVIDIA GPU)
-uv pip install faiss-gpu
-```
-
-## Run (end-to-end)
-
-### 1) Download `image_ids_and_rotation.csv`
-
-This file contains the canonical OpenImages image IDs and is required to
-construct any subset manifest.
+This file contains the canonical OpenImages image IDs and is required to randomly sample a arbitrary subset.
 
 ```bash
 mkdir path/to/openimgs
@@ -66,112 +20,122 @@ cd path/to/openimgs
 wget https://storage.googleapis.com/openimages/2018_04/image_ids_and_rotation.csv
 ```
 
-### 2) Create the subset manifest (image IDs)
-We use OpenImages v7 train (1% subsample) as the reference set.
+### OpenImages download script
 
 ```bash
-python scripts/make_openimages_manifest.py \
-  --csv path/to/image_ids_and_rotation.csv \
+python scripts/download_openimages.py \
+  --csv /path/to/image_ids_and_rotation.csv \
+  --out /path/to/openimgs \
+  --target 100000 \
   --split train \
-  --fraction 0.07 \
-  --seed 0 \
-  --out path/to/openimgs/manifest600k.txt
+  --workers 32 \
+  --retries 0
 ```
-Output: `manifest600k.txt`
-
-### 3) Download images referenced by the manifest
+**Output structure:**
 ```bash
-python scripts/openimages_downloader.py \
-  path/to/openimgs/manifest600k.txt \
-  --download_folder path/to/openimgs/images \
-  --target 10000 \
-  --num_workers 32 \
-  --count_existing \
-  --success_manifest_out path/to/openimgs/manifest.txt
+/path/to/openimgs/
+├── images/
+│   └── *.jpg (downloaded images, named as image_id.jpg)
+├── download_log.jsonl
+├── success_manifest.txt
+└── download_summary.json
 ```
-**Notes:**
-- HTTP 404s are expected; missing images are skipped.
-- The `--target` flag controls how many images to download.
-- Downstream embedding and retrieval only operate on successfully downloaded images.
-- The success manifest (manifest.txt) contains the actual downloaded images.
+</details>
 
-### 4) Extract OpenImages embeddings (reference)
+<details>
+<summary><b>Extract embeddings</b></summary>
+Compute DINOv2 ViT-g/14 CLS embeddings for both reference and candidate datasets after resizing to 672px max edge and padding to ViT patch alignment.
 
+### Extract OpenImages embeddings (reference set)
 ```bash
 dw-extract-embeddings \
   --config configs/default.yaml \
   --dataset openimages \
-  --adapter openimages_manifest \
-  --manifest path/to/openimgs/manifest.txt \
-  --root path/to/openimgs/images
+  --root path/to/openimgs/images \
+  --pattern "*.jpg"
 ```
 
-### 5) Extract candidate embeddings
+### Extract candidate embeddings (any dataset)
+For each dataset, specify the `--pattern` argument using glob syntax where `*` matches any single file or directory name, and `**` recursively matches any number of subdirectories.
+```bash
+# Images in scene-specific folders
+--pattern "**/rgb/*.png"
+--pattern "**/cam-*/rgb/*.jpg"
 
-**Hypersim**
+# All JPEGs anywhere in dataset
+--pattern "**/*.jpg"
+
+# Specific naming convention  
+--pattern "image_*.jpeg"
+```
+
 ```bash
 dw-extract-embeddings \
   --config configs/default.yaml \
-  --dataset hypersim \
-  --adapter hypersim \
-  --root /path/to/hypersim
+  --dataset <dataset> \
+  --root /path/to/dataset \
+  --pattern "**/*.jpg"
 ```
 
-**GTA-SfM**
-```bash
-dw-extract-embeddings \
-  --config configs/default.yaml \
-  --dataset gta_sfm \
-  --adapter gta_sfm \
-  --root /path/to/gta_sfm
-```
-
-**ScanNet++ (or any globbed image dataset)**
+### Example: ScanNet++
+Optionally set `--max-frames-per-scene`, default is all frames.
 ```bash
 dw-extract-embeddings \
   --config configs/default.yaml \
   --dataset scannetpp \
-  --adapter image_glob \
   --root /path/to/scannetpp \
-  --pattern "*/dslr/undistorted_images/*.JPG"
+  --pattern "**/dslr/undistorted_images/*.JPG" \
+  --max-frames-per-scene 100
 ```
 
-### 6) 1-NN retrieval (OpenImages queries, candidate index)
+</details>
+
+<details>
+<summary><b>Retrieve 1-NN</b></summary>
+For each reference embedding, find its nearest neighbor in each candidate dataset using cosine similarity in the normalized embedding space.
+
+### 1-NN retrieval (OpenImages queries, candidate index)
 
 ```bash
 dw-retrieve-1nn \
-  --ref_emb artifacts/embeddings/openimgs/emb_bf16.npy \
-  --cand_emb artifacts/embeddings/hypersim/emb_bf16.npy \
-  --outdir artifacts/retrieval/hypersim
+  --ref_emb artifacts/embeddings/<ref>/emb.npy \
+  --cand_emb artifacts/embeddings/<dataset>/emb.npy \
+  --outdir artifacts/retrieval/<ref_dataset>
 ```
 
 Repeat for each candidate dataset.
+</details>
 
-### 7) Aggregate weights
+<details>
+<summary><b>Aggregate weights</b></summary>
+
+Count how often each candidate dataset provides the nearest neighbor; normalize these counts to produce final mixing weights proportional to distribution match.
 
 ```bash
 dw-aggregate-weights \
-  --datasets hypersim gta_sfm scannetpp \
-  --nn_sims \
-    artifacts/retrieval/openimgs/nn_sim.npy \
-    artifacts/retrieval/openimgs/nn_sim.npy \
-    artifacts/retrieval/openimgs/nn_sim.npy \
+  --datasets dataset1 ... datasetN \
   --outdir artifacts/weights
 ```
+Weights = win frequency over all reference queries.
+</details>
 
-Note: For a complete automated pipeline, see run_all.sh which orchestrates all steps.
+## Output directory structure
 
-## Artifacts layout (gitignored)
-
-- `artifacts/embeddings/<dataset>/`
-  - `emb_bf16.npy`
-  - `paths.jsonl`
-  - `meta.json`
-- `artifacts/retrieval/<ref>__<cand>/`
-  - `nn_sim.npy`
-  - `nn_idx.npy`
-- `artifacts/weights/<ref>/`
-  - `weights.json`
-  - `counts.json`
-  - `wins.npy`
-  - `max_sim.npy`
+```bash
+artifacts/
+├── embeddings/
+│   └── <dataset>/
+│       ├── emb.npy
+│       ├── paths.jsonl
+│       └── meta.json
+├── retrieval/
+│   └── <ref>_<cand>/
+│       ├── nn_sim.npy
+│       └── nn_idx.npy
+└── weights/
+    └── <ref>/
+        ├── weights.json
+        ├── counts.json
+        ├── wins.npy
+        └── max_sim.npy
+```
