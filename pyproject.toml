@@ -10,12 +10,10 @@ dependencies = [
   "torch>=2.1",
   "boto3",
   "botocore",
-  "matplotlib"
+  "matplotlib",
+  "faiss-gpu>=1.7.2",
+  "transformers==5.0.0",
 ]
-
-[project.optional-dependencies]
-faiss-cpu = ["faiss-cpu>=1.7.4"]
-faiss-gpu = ["faiss-gpu>=1.7.2"]
 
 [project.scripts]
 dw-extract-embeddings = "dw.cli.extract_embeddings:main"

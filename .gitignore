@@ -19,3 +19,4 @@ __pycache__/
 # os junk
 .DS_Store
 __MACOSX/
+*.egg-info
