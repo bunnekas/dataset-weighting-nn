@@ -2,9 +2,8 @@
 
 Compute dataset mixing weights so that a training mixture best matches the distribution of natural images, following *MoGe Appendix B.1*.
 
-We estimate weights via 1-NN retrieval in DINOv2 ViT-g/14 CLS embedding space, using OpenImages v7 train subsample as the reference distribution.
-
 ## Pipeline
+We estimate weights via 1-NN retrieval in DINOv2 ViT-g/14 CLS embedding space, using OpenImages v7 train subsample as the reference distribution.
 
 <details>
 <summary><b>Download reference dataset</b></summary>
@@ -120,7 +119,7 @@ Weights = win frequency over all reference queries.
 </details>
 
 ## Output directory structure
-
+Output directory can be set in `configs/default.yaml`, by default the artifacts are saved at the project root.
 ```bash
 artifacts/
 ├── embeddings/
