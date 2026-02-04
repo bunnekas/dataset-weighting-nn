@@ -1,0 +1,15 @@
+# datasets.yaml
+reference:
+  name: "openimages"
+  root: "/path/to/openimages/images"
+  pattern: "*.jpg"
+
+candidates:
+  # Example
+  scannetpp:
+    root: "/path/to/scannetpp"
+    pattern: "**/dslr/undistorted_images/*.JPG"
+  # Add new datasets here
+  my_dataset:
+    root: "/path/to/my_dataset"
+    pattern: "**/*.png"
