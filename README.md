@@ -8,11 +8,11 @@ We estimate weights via 1-NN retrieval in DINOv2 ViT-g/14 CLS embedding space, u
 
 <details>
 <summary><b>0) Download reference dataset</b></summary>
-Download a representative subset as the reference distribution against which candidate datasets will be measured. We use OpenImages v7 train (1% subsample).
+Choose a representative set of images as the reference distribution against which candidate datasets will be measured. We use OpenImages v7 train (~1% subsample).
 
 ### Download `image_ids_and_rotation.csv`
 
-This file contains the canonical OpenImages image IDs and is required to randomly sample a arbitrary subset.
+This file contains OpenImages meta data as well as image IDs and download URLs and is required to randomly sample a arbitrary reference set.
 
 ```bash
 mkdir path/to/openimgs
@@ -32,7 +32,7 @@ python scripts/download_openimages.py \
   --retries 0
 ```
 
-### Output structure
+The `--target` flag defines the number of images to be downloaded. Further logs like error code for unseccesful downloads can be found in `download_log.jsonl`. The output structure looks as follows:
 
 ```bash
 /path/to/openimgs/
@@ -47,7 +47,7 @@ python scripts/download_openimages.py \
 
 <details>
 <summary><b>1) Extract embeddings</b></summary>
-Compute DINOv2 ViT-g/14 CLS embeddings for both reference and candidate datasets after resizing to 672px max edge and padding to ViT patch alignment.
+Compute DINOv2 ViT-g/14 CLS embeddings for both reference and candidate datasets after resizing to 672px max edge and cropping the smaller edge to the next smaller multiple of the ViT patch size (14 for DinoV2).
 
 ### Extract OpenImages embeddings (reference set)
 
@@ -85,7 +85,7 @@ dw-extract-embeddings \
 
 ### Example: ScanNet++
 
-Optionally set `--max-frames-per-scene`, default is all frames.
+Optionally set `--max-frames-per-scene`, by default all frames are embedded.
 
 ```bash
 dw-extract-embeddings \
