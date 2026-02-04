@@ -3,68 +3,21 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Iterator
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 import yaml
 from tqdm import tqdm
-from PIL import Image
 
 from dw.adapters.pattern_glob import PatternGlobAdapter
 from dw.features.dinov2 import DINOv2ViTG14Embedder
 from dw.features.preprocess import (
     pil_to_tensor_rgb01,
     normalize_imagenet,
+    resize_and_crop_to_multiple,
+    batch_crop_to_multiple,
 )
 from dw.npy import save_fp16
-
-
-def _resize_and_pad_to_multiple(
-    img: Image.Image, 
-    max_edge: int = 672, 
-    patch: int = 14
-) -> Image.Image:
-    """
-    Resize image so max(H,W) = max_edge, then pad to make dimensions divisible by patch.
-    """
-    from PIL import Image
-    
-    w, h = img.size
-    m = max(w, h)
-    if m > max_edge:
-        s = max_edge / float(m)
-        nw, nh = int(round(w * s)), int(round(h * s))
-        img = img.resize((nw, nh), resample=Image.BICUBIC)
-        w, h = nw, nh
-    
-    pad_w = (patch - (w % patch)) % patch
-    pad_h = (patch - (h % patch)) % patch
-    
-    if pad_w == 0 and pad_h == 0:
-        return img
-    
-    new_w = w + pad_w
-    new_h = h + pad_h
-    new_img = Image.new("RGB", (new_w, new_h), (0, 0, 0))
-    new_img.paste(img, (0, 0))
-    return new_img
-
-
-def _pad_stack(tensors: list[torch.Tensor], patch: int = 14) -> torch.Tensor:
-    """Stack list of (3,H,W) into (B,3,Hpad,Wpad), padding to max H/W + patch multiple."""
-    if not tensors:
-        return torch.empty((0, 3, patch, patch), dtype=torch.float32)
-
-    max_h = max(t.shape[1] for t in tensors)
-    max_w = max(t.shape[2] for t in tensors)
-    
-    max_h = max_h + (patch - (max_h % patch)) % patch
-    max_w = max_w + (patch - (max_w % patch)) % patch
-
-    padded = [F.pad(t, (0, max_w - t.shape[2], 0, max_h - t.shape[1])) for t in tensors]
-    return torch.stack(padded, dim=0)
 
 
 def main() -> None:
@@ -76,6 +29,7 @@ def main() -> None:
     ap.add_argument("--max-frames-per-scene", type=int, default=None)
     ap.add_argument("--batch-size", type=int, default=None)
     ap.add_argument("--max-samples", type=int, default=None)
+    ap.add_argument("--crop", action="store_true", default=True, help="Crop to patch multiple (default: True)")
     
     args = ap.parse_args()
 
@@ -84,6 +38,7 @@ def main() -> None:
     max_edge = int(cfg.get("preprocess", {}).get("max_edge", 672))
     batch_size = int(args.batch_size or cfg.get("batch_size", 32))
     l2_norm = bool(cfg.get("l2_normalize", True))
+    use_crop = args.crop
     
     out_root = Path(cfg.get("artifacts", {}).get("root", "artifacts"))
     outdir = out_root / "embeddings" / args.dataset
@@ -104,12 +59,12 @@ def main() -> None:
     )
     
     total = 0
+    
     for sample in tqdm(adapter, desc=f"Embedding {args.dataset}", unit="img"):
         if args.max_samples and total >= args.max_samples:
             break
             
-        from PIL import Image
-        img = _resize_and_pad_to_multiple(sample.image, max_edge=max_edge, patch=14)
+        img = resize_and_crop_to_multiple(sample.image, max_edge=max_edge, patch=14)
         t = pil_to_tensor_rgb01(img)
         batch_imgs.append(t)
         batch_meta.append(sample.meta)
@@ -117,12 +72,19 @@ def main() -> None:
         if len(batch_imgs) < batch_size:
             continue
         
-        batch = _pad_stack(batch_imgs, patch=14).cuda(non_blocking=True)
-        batch = torch.stack([normalize_imagenet(batch[i]) for i in range(batch.shape[0])], dim=0)
+        # Stack images and move to CUDA
+        batch = torch.stack(batch_imgs, dim=0).cuda(non_blocking=True)
         
+        # Ensure batch dimensions are divisible by patch (should already be, but double-check)
+        if use_crop:
+            batch = batch_crop_to_multiple(batch, patch=14)
+        
+        # Normalize and embed
+        batch = torch.stack([normalize_imagenet(batch[i]) for i in range(batch.shape[0])], dim=0)
         cls = embedder.embed_batch(batch, l2_normalize=l2_norm)
         emb_chunks.append(cls.detach().cpu().numpy().astype(np.float16, copy=False))
         
+        # Write metadata
         for m in batch_meta:
             paths_fp.write(json.dumps(m) + "\n")
         
@@ -130,8 +92,11 @@ def main() -> None:
         batch_imgs.clear()
         batch_meta.clear()
     
+    # Process remaining batch
     if batch_imgs:
-        batch = _pad_stack(batch_imgs, patch=14).cuda(non_blocking=True)
+        batch = torch.stack(batch_imgs, dim=0).cuda(non_blocking=True)
+        if use_crop:
+            batch = batch_crop_to_multiple(batch, patch=14)
         batch = torch.stack([normalize_imagenet(batch[i]) for i in range(batch.shape[0])], dim=0)
         cls = embedder.embed_batch(batch, l2_normalize=l2_norm)
         emb_chunks.append(cls.detach().cpu().numpy().astype(np.float16, copy=False))

@@ -10,6 +10,38 @@ IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
+def resize_and_crop_to_multiple(
+    img: Image.Image, 
+    max_edge: int = 672, 
+    patch: int = 14
+) -> Image.Image:
+    """
+    Resize image so max(H,W) = max_edge, then crop smaller edge 
+    to next lower multiple of patch size (center crop).
+    """
+    w, h = img.size
+    m = max(w, h)
+    
+    # Resize if larger than max_edge
+    if m > max_edge:
+        s = max_edge / float(m)
+        nw, nh = int(round(w * s)), int(round(h * s))
+        img = img.resize((nw, nh), resample=Image.BICUBIC)
+        w, h = nw, nh
+    
+    # Crop to next lower multiple of patch size
+    crop_w = w - (w % patch)
+    crop_h = h - (h % patch)
+    
+    # Center crop
+    left = (w - crop_w) // 2
+    top = (h - crop_h) // 2
+    right = left + crop_w
+    bottom = top + crop_h
+    
+    return img.crop((left, top, right, bottom))
+
+
 def pil_to_tensor_rgb01(img: Image.Image) -> torch.Tensor:
     """Convert PIL RGB to float tensor (3,H,W) in [0,1]."""
     if img.mode != "RGB":
@@ -23,3 +55,21 @@ def normalize_imagenet(t: torch.Tensor) -> torch.Tensor:
     mean = torch.tensor(IMAGENET_MEAN, dtype=t.dtype, device=t.device)[:, None, None]
     std = torch.tensor(IMAGENET_STD, dtype=t.dtype, device=t.device)[:, None, None]
     return (t - mean) / std
+
+
+def batch_crop_to_multiple(batch: torch.Tensor, patch: int = 14) -> torch.Tensor:
+    """
+    Crop a batch (B,3,H,W) so H and W are divisible by patch.
+    Center crops each image in the batch.
+    """
+    b, c, h, w = batch.shape
+    crop_h = h - (h % patch)
+    crop_w = w - (w % patch)
+    
+    if crop_h == h and crop_w == w:
+        return batch
+    
+    # Center crop
+    start_h = (h - crop_h) // 2
+    start_w = (w - crop_w) // 2
+    return batch[:, :, start_h:start_h + crop_h, start_w:start_w + crop_w]
