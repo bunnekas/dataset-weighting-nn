@@ -2,9 +2,68 @@
 
 Compute dataset mixing weights so that a training mixture best matches the distribution of natural images, following *MoGe Appendix B.1*.
 
-## Pipeline
-
 We estimate weights via 1-NN retrieval in DINOv2 ViT-g/14 CLS embedding space, using OpenImages v7 train subsample as the reference distribution.
+
+## Quick Start
+
+Configure datasets in `configs/datasets.yaml`:
+
+```bash
+reference:
+  name: "openimages"
+  root: "/path/to/openimages/images"
+  pattern: "*.jpg"
+
+candidates:
+  # Example
+  scannetpp:
+    root: "/path/to/scannetpp"
+    pattern: "**/dslr/undistorted_images/*.JPG"
+  # Add more datasets here
+  my_dataset:
+    root: "/path/to/my_dataset"
+    pattern: "**/*.png"
+```
+
+Run the complete pipeline:
+```bash
+just pipeline
+```
+This runs: embeddings → retrieval → aggregation for all datasets in your config.
+
+### Essential Commands
+
+```bash
+just pipeline         # Run everything
+just status           # Check progress
+just embed-all        # Extract embeddings only
+just retrieve-all     # 1-NN retrieval only  
+just aggregate        # Compute weights only
+just clean            # Remove intermediate files
+just clean-all        # Remove all artifacts
+```
+
+### Adding a New Dataset
+
+1. Add to configs/datasets.yaml:
+
+```bash
+my_new_dataset:
+  root: "/path/to/data"
+  pattern: "**/*.jpg"
+  max_frames: 50    # optional
+```
+
+2. Run:
+
+```bash
+just pipeline
+```
+
+The new dataset is automatically included.
+
+## Pipeline
+Find pipeline details here:
 
 <details>
 <summary><b>0) Download reference dataset</b></summary>
@@ -25,7 +84,7 @@ wget https://storage.googleapis.com/openimages/2018_04/image_ids_and_rotation.cs
 ```bash
 python scripts/download_openimages.py \
   --csv /path/to/image_ids_and_rotation.csv \
-  --out /path/to/openimgs \
+  --outdir /path/to/openimgs \
   --target 100000 \
   --split train \
   --workers 32 \
@@ -131,6 +190,7 @@ Weights = win frequency over all reference queries.
 ## Output directory structure
 
 Output directory can be set in `configs/default.yaml`, by default the artifacts are saved at the project root.
+
 ```bash
 artifacts/
 ├── embeddings/
