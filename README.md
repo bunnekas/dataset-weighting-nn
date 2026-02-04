@@ -67,6 +67,7 @@ Find pipeline details here:
 
 <details>
 <summary><b>0) Download reference dataset</b></summary>
+
 Choose a representative set of images as the reference distribution against which candidate datasets will be measured. We use OpenImages v7 train (~1% subsample).
 
 ### Download `image_ids_and_rotation.csv`
@@ -106,6 +107,7 @@ The `--target` flag defines the number of images to be downloaded. Further logs 
 
 <details>
 <summary><b>1) Extract embeddings</b></summary>
+
 Compute DINOv2 ViT-g/14 CLS embeddings for both reference and candidate datasets after resizing to 672px max edge and cropping the smaller edge to the next smaller multiple of the ViT patch size (14 for DinoV2).
 
 ### Extract OpenImages embeddings (reference set)
@@ -159,6 +161,7 @@ dw-extract-embeddings \
 
 <details>
 <summary><b>2) Retrieve 1-NN</b></summary>
+
 For each reference embedding, find its nearest neighbor in each candidate dataset using cosine similarity in the normalized embedding space.
 
 ### 1-NN retrieval (OpenImages queries, candidate index)
@@ -181,7 +184,7 @@ Count how often each candidate dataset provides the nearest neighbor; normalize 
 ```bash
 dw-aggregate-weights \
   --datasets dataset1 ... datasetN \
-  --outdir artifacts/weights
+  --outdir artifacts/weights/<ref>
 ```
 
 Weights = win frequency over all reference queries.
