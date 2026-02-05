@@ -13,6 +13,7 @@ reference:
   name: "openimages"
   root: "/path/to/openimages/images"
   pattern: "*.jpg"
+  batch_size: 1
 
 candidates:
   # Example
@@ -24,6 +25,8 @@ candidates:
     root: "/path/to/my_dataset"
     pattern: "**/*.png"
 ```
+
+**Note**: For datasets with varying aspect ratio (e.g. OpenImages) `batch_size` needs to be 1, otherwise it is set to 32 by default in `configs/default.yaml`.
 
 Run the complete pipeline:
 
@@ -66,7 +69,7 @@ The new dataset is automatically included.
 
 ## Pipeline
 
-Find pipeline details here:
+Find more pipeline details here:
 
 <details>
 <summary><b>0) Download reference dataset</b></summary>
