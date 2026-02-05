@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+"""
+Dynamic pipeline runner
+Usage: python dw-pipeline.py [command] [options]
+"""
+import yaml
+import subprocess
+import sys
+from pathlib import Path
+
+def load_config():
+    with open("configs/datasets.yaml") as f:
+        return yaml.safe_load(f)
+
+def embed_all():
+    config = load_config()
+    
+    # Embed reference if needed
+    ref = config["reference"]
+    ref_meta = Path(f"artifacts/embeddings/{ref['name']}/meta.json")
+    if not ref_meta.exists():
+        ref_cmd = [
+            "dw-extract-embeddings",
+            "--config", "configs/default.yaml",
+            "--dataset", ref["name"],
+            "--root", ref["root"],
+            "--pattern", ref["pattern"],
+        ]
+        if ref.get("max_frames"):
+            ref_cmd.extend(["--max_frames_per_scene", str(ref["max_frames"])])
+        print(f"Embedding reference {ref['name']}...")
+        subprocess.run(ref_cmd, check=True)
+    else:
+        print(f"Reference {ref['name']} already embedded")
+    
+    # Embed candidates if needed
+    for name, spec in config["candidates"].items():
+        cand_meta = Path(f"artifacts/embeddings/{name}/meta.json")
+        if not cand_meta.exists():
+            cmd = [
+                "dw-extract-embeddings",
+                "--config", "configs/default.yaml",
+                "--dataset", name,
+                "--root", spec["root"],
+                "--pattern", spec["pattern"],
+            ]
+            if spec.get("max_frames"):
+                cmd.extend(["--max_frames_per_scene", str(spec["max_frames"])])
+            print(f"Embedding {name}...")
+            subprocess.run(cmd, check=True)
+        else:
+            print(f"Candidate {name} already embedded")
+
+def retrieve_all():
+    config = load_config()
+    ref = config["reference"]["name"]
+    for name in config["candidates"]:
+        cmd = [
+            "dw-retrieve-1nn",
+            "--ref_emb", f"artifacts/embeddings/{ref}/emb.npy",
+            "--cand_emb", f"artifacts/embeddings/{name}/emb.npy",
+            "--outdir", f"artifacts/retrieval/{ref}_{name}",
+        ]
+        print(f"Retrieving {ref} → {name}...")
+        subprocess.run(cmd, check=True)
+
+def aggregate():
+    config = load_config()
+    ref = config["reference"]["name"]
+    datasets = list(config["candidates"].keys())
+    nn_sims = [f"artifacts/retrieval/{ref}_{d}/nn_sim.npy" for d in datasets]
+    
+    cmd = [
+        "dw-aggregate-weights",
+        "--datasets", *datasets,
+        "--nn_sims", *nn_sims,
+        "--outdir", f"artifacts/weights/{ref}",
+    ]
+    print(f"Aggregating weights for {len(datasets)} datasets...")
+    subprocess.run(cmd, check=True)
+
+def status():
+    config = load_config()
+    ref = config["reference"]["name"]
+    
+    print("=== Embeddings ===")
+    for name in [ref] + list(config["candidates"].keys()):
+        meta = Path(f"artifacts/embeddings/{name}/meta.json")
+        if meta.exists():
+            print(f"✓ {name}")
+        else:
+            print(f"✗ {name}")
+    
+    print("\n=== Retrievals ===")
+    for name in config["candidates"]:
+        sim = Path(f"artifacts/retrieval/{ref}_{name}/nn_sim.npy")
+        print(f"{'✓' if sim.exists() else '✗'} {ref} → {name}")
+    
+    print("\n=== Weights ===")
+    weights = Path(f"artifacts/weights/{ref}/weights.json")
+    if weights.exists():
+        print(weights.read_text())
+    else:
+        print("Not computed")
+
+def pipeline():
+    embed_all()
+    retrieve_all()
+    aggregate()
+
+if __name__ == "__main__":
+    commands = {
+        "embed-all": embed_all,
+        "retrieve-all": retrieve_all,
+        "aggregate": aggregate,
+        "status": status,
+        "pipeline": pipeline,
+    }
+    
+    if len(sys.argv) < 2 or sys.argv[1] not in commands:
+        print("Usage: python dw-pipeline.py <command>")
+        print("Commands:", ", ".join(commands.keys()))
+        sys.exit(1)
+    
+    commands[sys.argv[1]]()
