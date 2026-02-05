@@ -28,6 +28,8 @@ def embed_all():
         ]
         if ref.get("max_frames"):
             ref_cmd.extend(["--max_frames_per_scene", str(ref["max_frames"])])
+        if ref.get("batch_size"):
+            ref_cmd.extend(["--batch-size", str(ref["batch_size"])])
         print(f"Embedding reference {ref['name']}...")
         subprocess.run(ref_cmd, check=True)
     else:
@@ -46,6 +48,8 @@ def embed_all():
             ]
             if spec.get("max_frames"):
                 cmd.extend(["--max_frames_per_scene", str(spec["max_frames"])])
+            if spec.get("batch_size"):  # Pass batch_size if specified
+                cmd.extend(["--batch-size", str(spec["batch_size"])])
             print(f"Embedding {name}...")
             subprocess.run(cmd, check=True)
         else:
