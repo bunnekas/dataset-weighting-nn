@@ -5,7 +5,16 @@ from transformers import AutoModel
 
 
 class DINOv2ViTG14Embedder:
-    def __init__(self):
+    _instance = None
+    _model = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize_model()
+        return cls._instance
+    
+    def _initialize_model(self):
         print("Loading DINOv2 ViT-g/14 on CUDA with float16")
         
         self.model = AutoModel.from_pretrained(
@@ -16,15 +25,7 @@ class DINOv2ViTG14Embedder:
         self.model.eval()
         
     @torch.no_grad()
-    def embed_batch(
-        self, 
-        images: torch.Tensor, 
-        l2_normalize: bool = True
-    ) -> torch.Tensor:
-        """
-        images: (B, 3, H, W) already normalized with ImageNet stats
-        returns: (B, 1536) CLS token embeddings
-        """
+    def embed_batch(self, images: torch.Tensor, l2_normalize: bool = True) -> torch.Tensor:
         with torch.autocast(device_type="cuda", dtype=torch.float16):
             outputs = self.model(images)
             cls_token = outputs.last_hidden_state[:, 0]
