@@ -55,7 +55,7 @@ class OpenImagesDownloader:
         self,
         csv_path: Path,
         target_count: int,
-        out: Path,
+        outdir: Path,
         split: str = "train",
         seed: int = 0,
         num_workers: int = 32,
@@ -63,17 +63,17 @@ class OpenImagesDownloader:
     ):
         self.csv_path = csv_path
         self.target_count = target_count
-        self.out = out
+        self.outdir = outdir
         self.split = split
         self.seed = seed
         self.num_workers = num_workers
         self.max_retries = max_retries
         
         # Set up paths relative to output root
-        self.images_dir = self.out / "images"
-        self.log_file = self.out / "download_log.jsonl"
-        self.success_manifest = self.out / "success_manifest.txt"
-        self.summary_file = self.out / "download_summary.json"
+        self.images_dir = self.outdir / "images"
+        self.log_file = self.outdir / "download_log.jsonl"
+        self.success_manifest = self.outdir / "success_manifest.txt"
+        self.summary_file = self.outdir / "download_summary.json"
         
         # Initialize tracking
         self.downloaded_count = 0
@@ -241,7 +241,7 @@ class OpenImagesDownloader:
             "config": {
                 "csv_file": str(self.csv_path),
                 "target_count": self.target_count,
-                "out": str(self.out),
+                "outdir": str(self.outdir),
                 "split": self.split,
                 "seed": self.seed,
                 "num_workers": self.num_workers,
@@ -297,7 +297,7 @@ class OpenImagesDownloader:
     def run(self):
         """Main download pipeline"""
         # Create directories
-        self.out.mkdir(parents=True, exist_ok=True)
+        self.outdir.mkdir(parents=True, exist_ok=True)
         self.images_dir.mkdir(exist_ok=True)
         
         # Load and shuffle image IDs
@@ -305,7 +305,7 @@ class OpenImagesDownloader:
         random.Random(self.seed).shuffle(all_ids)
         
         print(f"Target: download {self.target_count} images")
-        print(f"Output root: {self.out}")
+        print(f"Output root: {self.outdir}")
         print(f"Using {self.num_workers} workers")
         print(f"Retries: {self.max_retries}")
         print(f"Images will be saved to: {self.images_dir}")
@@ -387,7 +387,7 @@ class OpenImagesDownloader:
             return False
         
         print(f"\nSUCCESS: Downloaded {self.downloaded_count} images.")
-        print(f"   Output root: {self.out}")
+        print(f"   Output root: {self.outdir}")
         print(f"   Success manifest: {self.success_manifest}")
         print(f"   Detailed log: {self.log_file}")
         print(f"   Summary: {self.summary_file}")
@@ -405,7 +405,7 @@ def main():
         help="Path to image_ids_and_rotation.csv"
     )
     parser.add_argument(
-        "--out",
+        "--outdir",
         required=True,
         type=Path,
         help="Root directory for output (will create images/ subdirectory)"
@@ -452,7 +452,7 @@ def main():
     downloader = OpenImagesDownloader(
         csv_path=args.csv,
         target_count=args.target,
-        out=args.out,
+        outdir=args.outdir,
         split=args.split,
         seed=args.seed,
         num_workers=args.workers,
