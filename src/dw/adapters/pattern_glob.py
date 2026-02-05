@@ -1,4 +1,3 @@
-# src/dw/adapters/pattern_glob.py
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,16 +22,19 @@ class PatternGlobAdapter:
         paths = glob.glob(str(self.root / self.pattern), recursive=True)
         paths.sort()
 
-        per_scene_count: DefaultDict[Optional[str], int] = defaultdict(int)
+        per_scene_count: DefaultDict[str, int] = defaultdict(int)
+        total_count = 0
 
         for p in paths:
             try:
                 rel = Path(p).relative_to(self.root)
-                scene = rel.parts[0] if rel.parts else None
+                scene = str(rel.parent) if str(rel.parent) != "." else "flat"
             except Exception:
-                scene = None
+                scene = "flat"
 
-            if self.max_frames_per_scene is not None and per_scene_count[scene] >= int(self.max_frames_per_scene):
+            # Check limit
+            if (self.max_frames_per_scene is not None and 
+                per_scene_count[scene] >= self.max_frames_per_scene):
                 continue
 
             try:
@@ -47,3 +49,4 @@ class PatternGlobAdapter:
             )
 
             per_scene_count[scene] += 1
+            total_count += 1
