@@ -55,21 +55,3 @@ def normalize_imagenet(t: torch.Tensor) -> torch.Tensor:
     mean = torch.tensor(IMAGENET_MEAN, dtype=t.dtype, device=t.device)[:, None, None]
     std = torch.tensor(IMAGENET_STD, dtype=t.dtype, device=t.device)[:, None, None]
     return (t - mean) / std
-
-
-def batch_crop_to_multiple(batch: torch.Tensor, patch: int = 14) -> torch.Tensor:
-    """
-    Crop a batch (B,3,H,W) so H and W are divisible by patch.
-    Center crops each image in the batch.
-    """
-    b, c, h, w = batch.shape
-    crop_h = h - (h % patch)
-    crop_w = w - (w % patch)
-    
-    if crop_h == h and crop_w == w:
-        return batch
-    
-    # Center crop
-    start_h = (h - crop_h) // 2
-    start_w = (w - crop_w) // 2
-    return batch[:, :, start_h:start_h + crop_h, start_w:start_w + crop_w]

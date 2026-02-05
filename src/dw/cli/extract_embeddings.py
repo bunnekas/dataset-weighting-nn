@@ -14,8 +14,7 @@ from dw.features.dinov2 import DINOv2ViTG14Embedder
 from dw.features.preprocess import (
     pil_to_tensor_rgb01,
     normalize_imagenet,
-    resize_and_crop_to_multiple,
-    batch_crop_to_multiple,
+    resize_and_crop_to_multiple
 )
 from dw.npy import save_fp16
 
@@ -26,10 +25,9 @@ def main() -> None:
     ap.add_argument("--dataset", required=True, help="Dataset name for output folder")
     ap.add_argument("--root", required=True, help="Root directory for dataset")
     ap.add_argument("--pattern", required=True, help="Glob pattern for images")
-    ap.add_argument("--max-frames-per-scene", type=int, default=None)
+    ap.add_argument("--max_frames_per_scene", type=int, default=None)
     ap.add_argument("--batch-size", type=int, default=None)
     ap.add_argument("--max-samples", type=int, default=None)
-    ap.add_argument("--crop", action="store_true", default=True, help="Crop to patch multiple (default: True)")
     
     args = ap.parse_args()
 
@@ -38,7 +36,6 @@ def main() -> None:
     max_edge = int(cfg.get("preprocess", {}).get("max_edge", 672))
     batch_size = int(args.batch_size or cfg.get("batch_size", 32))
     l2_norm = bool(cfg.get("l2_normalize", True))
-    use_crop = args.crop
     
     out_root = Path(cfg.get("artifacts", {}).get("root", "artifacts"))
     outdir = out_root / "embeddings" / args.dataset
@@ -72,19 +69,19 @@ def main() -> None:
         if len(batch_imgs) < batch_size:
             continue
         
-        # Stack images and move to CUDA
         batch = torch.stack(batch_imgs, dim=0).cuda(non_blocking=True)
         
-        # Ensure batch dimensions are divisible by patch (should already be, but double-check)
-        if use_crop:
-            batch = batch_crop_to_multiple(batch, patch=14)
+        # Safety check for patch divisibility
+        h, w = batch.shape[2], batch.shape[3]
+        if h % 14 != 0 or w % 14 != 0:
+            h_crop = h - (h % 14)
+            w_crop = w - (w % 14)
+            batch = batch[:, :, :h_crop, :w_crop]
         
-        # Normalize and embed
         batch = torch.stack([normalize_imagenet(batch[i]) for i in range(batch.shape[0])], dim=0)
         cls = embedder.embed_batch(batch, l2_normalize=l2_norm)
         emb_chunks.append(cls.detach().cpu().numpy().astype(np.float16, copy=False))
         
-        # Write metadata
         for m in batch_meta:
             paths_fp.write(json.dumps(m) + "\n")
         
@@ -92,11 +89,13 @@ def main() -> None:
         batch_imgs.clear()
         batch_meta.clear()
     
-    # Process remaining batch
     if batch_imgs:
         batch = torch.stack(batch_imgs, dim=0).cuda(non_blocking=True)
-        if use_crop:
-            batch = batch_crop_to_multiple(batch, patch=14)
+        h, w = batch.shape[2], batch.shape[3]
+        if h % 14 != 0 or w % 14 != 0:
+            h_crop = h - (h % 14)
+            w_crop = w - (w % 14)
+            batch = batch[:, :, :h_crop, :w_crop]
         batch = torch.stack([normalize_imagenet(batch[i]) for i in range(batch.shape[0])], dim=0)
         cls = embedder.embed_batch(batch, l2_normalize=l2_norm)
         emb_chunks.append(cls.detach().cpu().numpy().astype(np.float16, copy=False))
