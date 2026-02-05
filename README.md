@@ -26,9 +26,11 @@ candidates:
 ```
 
 Run the complete pipeline:
+
 ```bash
 just pipeline
 ```
+
 This runs: embeddings → retrieval → aggregation for all datasets in your config.
 
 ### Essential Commands
@@ -63,6 +65,7 @@ just pipeline
 The new dataset is automatically included.
 
 ## Pipeline
+
 Find pipeline details here:
 
 <details>
