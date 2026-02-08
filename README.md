@@ -1,4 +1,4 @@
-# dataset_weighting_nn
+# dataset-weighting-nn
 
 Compute dataset mixing weights so that a training mixture best matches the distribution of natural images, following *MoGe Appendix B.1*.
 
