@@ -1,8 +1,15 @@
-from __future__ import annotations
+"""
+Image preprocessing utilities used before embedding extraction.
 
+These helpers implement the minimum required steps for DINOv2:
+- resize to a bounded resolution (cap max edge)
+- crop to a patch-size multiple (ViT patch embedding requirement)
+- convert to tensor and apply ImageNet normalization
+"""
+
+from __future__ import annotations
 import numpy as np
 import torch
-import torch.nn.functional as F
 from PIL import Image
 
 
@@ -30,6 +37,7 @@ def resize_and_crop_to_multiple(
         w, h = nw, nh
     
     # Crop to next lower multiple of patch size
+    # DINOv2 ViT-g/14 expects H/W divisible by 14; we crop rather than pad.
     crop_w = w - (w % patch)
     crop_h = h - (h % patch)
     

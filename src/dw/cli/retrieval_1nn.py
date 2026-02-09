@@ -1,12 +1,16 @@
-from __future__ import annotations
+"""
+1-NN retrieval (reference → candidate) using FAISS.
 
+We use inner product (IndexFlatIP). This assumes embeddings are L2-normalized
+(as produced by `dw-extract-embeddings` by default), so inner product equals
+cosine similarity.
+"""
+
+from __future__ import annotations
 import argparse
 import time
 from pathlib import Path
-
 import numpy as np
-from tqdm import tqdm
-
 from dw.npy import load_for_faiss
 
 
@@ -22,8 +26,8 @@ def _require_faiss():
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--ref_emb", required=True, help="Reference emb_bf16.npy (OpenImages)")
-    ap.add_argument("--cand_emb", required=True, help="Candidate emb_bf16.npy")
+    ap.add_argument("--ref_emb", required=True, help="Reference emb.npy (queries)")
+    ap.add_argument("--cand_emb", required=True, help="Candidate emb.npy (index)")
     ap.add_argument("--outdir", required=True)
     args = ap.parse_args()
 
@@ -38,7 +42,7 @@ def main() -> None:
 
     faiss = _require_faiss()
     
-    # Use GPU if available
+    # Build an exact inner-product index over candidate vectors.
     index = faiss.IndexFlatIP(C.shape[1])
     index.add(C)
     
@@ -51,6 +55,7 @@ def main() -> None:
     print(f"Searching {R.shape[0]:,} queries...")
     nn_sim, nn_idx = index.search(R, 1)
     
+    # Shapes returned by FAISS are (M, k); we store flattened vectors for convenience.
     np.save(outdir / "nn_sim.npy", nn_sim.reshape(-1))
     np.save(outdir / "nn_idx.npy", nn_idx.reshape(-1))
     print(f"Wrote {outdir} in {time.time()-start:.1f}s")

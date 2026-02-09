@@ -1,3 +1,11 @@
+"""
+Aggregate dataset weights from per-dataset similarity vectors.
+
+Given K similarity arrays (one per candidate) over the same M reference queries,
+we assign each query to the candidate with the highest similarity ("win").
+Weights are computed as win frequency (wins / M).
+"""
+
 from __future__ import annotations
 import argparse
 import json
@@ -34,6 +42,8 @@ def main():
         assert s.shape == (M,)
 
     S = np.stack(sims, axis=0)
+
+    # For each query, pick the best matching dataset index.
     wins = np.argmax(S, axis=0).astype(np.int16)
     max_sim = S[wins, np.arange(M)].astype(np.float32)
 
@@ -44,6 +54,8 @@ def main():
     outdir.mkdir(parents=True, exist_ok=True)
     (outdir / "weights.json").write_text(json.dumps(weights, indent=2))
     (outdir / "counts.json").write_text(json.dumps(counts, indent=2))
+    
+    # Store the per-query winner (index into args.datasets) and its winning similarity.
     np.save(outdir / "wins.npy", wins)
     np.save(outdir / "max_sim.npy", max_sim)
 

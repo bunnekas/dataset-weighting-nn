@@ -1,18 +1,33 @@
-#!/usr/bin/env python3
 """
-Dynamic pipeline runner
-Usage: python dw-pipeline.py [command] [options]
+Dynamic pipeline runner.
+
+This script orchestrates the CLI tools in `src/dw/cli/` to produce the standard
+artifact layout under `artifacts/`:
+
+- `artifacts/embeddings/<dataset>/...` (embedding extraction + metadata)
+- `artifacts/retrieval/<ref>_<cand>/...` (1-NN retrieval results)
+- `artifacts/weights/<ref>/...` (aggregated weights / wins)
+
+It is intentionally *idempotent*: if `meta.json` already exists for a dataset,
+we assume embeddings were produced previously and skip recomputation.
+
+Usage: `python dw-pipeline.py <command>`
 """
+
 import yaml
 import subprocess
 import sys
 from pathlib import Path
 
+
 def load_config():
+    """Load `configs/datasets.yaml` describing reference + candidate datasets."""
     with open("configs/datasets.yaml") as f:
         return yaml.safe_load(f)
 
+
 def embed_all():
+    """Embed the reference dataset and all candidates (if missing)."""
     config = load_config()
     
     # Embed reference if needed
@@ -26,6 +41,7 @@ def embed_all():
             "--root", ref["root"],
             "--pattern", ref["pattern"],
         ]
+        # Optional knobs live in datasets.yaml (per dataset) and default.yaml (global).
         if ref.get("max_frames"):
             ref_cmd.extend(["--max_frames_per_scene", str(ref["max_frames"])])
         if ref.get("batch_size"):
@@ -48,14 +64,17 @@ def embed_all():
             ]
             if spec.get("max_frames"):
                 cmd.extend(["--max_frames_per_scene", str(spec["max_frames"])])
-            if spec.get("batch_size"):  # Pass batch_size if specified
+            # Per-dataset override (useful when mixing small/large images).
+            if spec.get("batch_size"):
                 cmd.extend(["--batch-size", str(spec["batch_size"])])
             print(f"Embedding {name}...")
             subprocess.run(cmd, check=True)
         else:
             print(f"Candidate {name} already embedded")
 
+
 def retrieve_all():
+    """Run 1-NN retrieval from reference → each candidate."""
     config = load_config()
     ref = config["reference"]["name"]
     for name in config["candidates"]:
@@ -68,10 +87,13 @@ def retrieve_all():
         print(f"Retrieving {ref} → {name}...")
         subprocess.run(cmd, check=True)
 
+
 def aggregate():
+    """Aggregate per-query winners into dataset weights."""
     config = load_config()
     ref = config["reference"]["name"]
     datasets = list(config["candidates"].keys())
+    # One similarity vector per candidate; all must have the same length M (#queries).
     nn_sims = [f"artifacts/retrieval/{ref}_{d}/nn_sim.npy" for d in datasets]
     
     cmd = [
@@ -83,7 +105,9 @@ def aggregate():
     print(f"Aggregating weights for {len(datasets)} datasets...")
     subprocess.run(cmd, check=True)
 
+
 def status():
+    """Print which artifact groups exist (embeddings / retrieval / weights)."""
     config = load_config()
     ref = config["reference"]["name"]
     
@@ -107,7 +131,9 @@ def status():
     else:
         print("Not computed")
 
+
 def pipeline():
+    """Full pipeline: embed → retrieve → aggregate."""
     embed_all()
     
     # Clear GPU memory before retrieval
