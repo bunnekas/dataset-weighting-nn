@@ -109,7 +109,13 @@ def status():
 
 def pipeline():
     embed_all()
-    retrieve_all()
+    
+    # Clear GPU memory before retrieval
+    import torch
+    torch.cuda.empty_cache()
+    torch.cuda.synchronize()
+    
+    retrieve_all()  
     aggregate()
 
 if __name__ == "__main__":
