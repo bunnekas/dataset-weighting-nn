@@ -1,0 +1,29 @@
+artifacts:
+  # Root directory for all generated artifacts (embeddings, retrieval, weights)
+  root: artifacts
+
+preprocess:
+  # Max longer image edge before cropping for DINOv2
+  max_edge: 672
+
+features:
+  # Default device and embedding settings
+  device: cuda
+  batch_size: 32
+  amp_dtype: fp16
+  l2_normalize: true
+
+# Reference dataset (queries)
+reference:
+  name: "reference_dataset"
+  root: "/path/to/reference/images"
+  pattern: "*.jpg"
+  batch_size: 1
+
+# Candidate datasets (indices)
+candidates:
+  <dataset>:
+    root: "/path/to/<dataset>"
+    pattern: "**/*.jpg"
+    # max_frames: 50   # optional per-scene cap
+

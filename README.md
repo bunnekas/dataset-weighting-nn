@@ -5,66 +5,54 @@ We estimate weights via 1-NN retrieval in DINOv2 ViT-g/14 CLS embedding space, u
 
 ## Quick Start
 
-Configure datasets in `configs/datasets.yaml`:
+### 1. Essential commands
 
 ```bash
-reference:
-  name: "openimages"
-  root: "/path/to/openimages/images"
-  pattern: "*.jpg"
-  batch_size: 1
+just status                 # Check which embeddings / retrieval / weights exist
 
+just embed                  # Embed reference + all candidates
+just embed <dataset>        # Embed only a single candidate
+
+just retrieve               # 1-NN retrieval for all candidates
+just retrieve <dataset>     # 1-NN retrieval for a single candidate
+
+just aggregate              # Compute weights from existing retrievals
+
+just pipeline               # Run embed + retrieve + aggregate for all datasets
+just pipeline <dataset>     # Run pipeline steps only for one candidate (still aggregates over all)
+
+just clean                  # Delete all embeddings/retrievals/weights (asks for confirmation)
+just clean <dataset>        # Delete artifacts only for a single dataset
+```
+
+### 2. Add a new dataset (config setup)
+
+1. Edit `configs/config.yaml` and add a new entry under `candidates`:
+
+```yaml
 candidates:
-  # Example
-  scannetpp:
-    root: "/path/to/scannetpp"
-    pattern: "**/dslr/undistorted_images/*.JPG"
-  # Add more datasets here
-  my_dataset:
-    root: "/path/to/my_dataset"
-    pattern: "**/*.png"
-```
-
-**Note**: For datasets with varying aspect ratio (e.g. OpenImages) `batch_size` needs to be 1, otherwise it is set to 32 by default in `configs/default.yaml`.
-
-Run the complete pipeline:
-
-```bash
-just pipeline
-```
-
-This runs: embeddings → retrieval → aggregation for all datasets in your config.
-
-### Essential Commands
-
-```bash
-just pipeline         # Run everything
-just status           # Check progress
-just embed-all        # Extract embeddings only
-just retrieve-all     # 1-NN retrieval only  
-just aggregate        # Compute weights only
-just clean            # Remove intermediate files
-just clean-all        # Remove all artifacts
-```
-
-### Adding a New Dataset
-
-1. Add to configs/datasets.yaml:
-
-```bash
-my_new_dataset:
-  root: "/path/to/data"
-  pattern: "**/*.jpg"
-  max_frames: 50    # optional
+  <dataset>:
+    root: "/path/to/data"
+    pattern: "**/*.jpg"
+    max_frames: 50    # optional
 ```
 
 2. Run:
 
 ```bash
-just pipeline
+just pipeline <dataset>
 ```
 
-The new dataset is automatically included.
+This will embed your new dataset (and retrieve 1‑NN from the reference set to it)
+and then recompute the global weights.
+
+### 3. Optional config knobs
+
+- **`artifacts.root`**: where all embeddings / retrievals / weights are stored (default: `artifacts/`).
+- **`preprocess.max_edge`**: longer image edge before DINOv2 cropping (default: `672`).
+- **`features.batch_size`**: default batch size for embedding; can be overridden per dataset.
+- **`features.amp_dtype`**: `fp16`, `bf16`, or anything else for full precision.
+- **`features.l2_normalize`**: whether to L2-normalize embeddings for cosine / inner-product retrieval.
 
 ## Pipeline
 
@@ -197,7 +185,8 @@ Weights = win frequency over all reference queries.
 
 ## Output directory structure
 
-Output directory can be set in `configs/default.yaml`, by default the artifacts are saved at the project root.
+Output directory is configured via `artifacts.root` in `configs/config.yaml`. By default
+the artifacts are saved at the project root.
 
 ```bash
 artifacts/
