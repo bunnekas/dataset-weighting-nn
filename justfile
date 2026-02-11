@@ -1,21 +1,41 @@
 # Just shortcuts
-pipeline:
-    ./dw-pipeline.py pipeline
+
+# Run full pipeline; optional dataset argument restricts to a single dataset.
+pipeline dataset='':
+    if [ "{{dataset}}" = "" ]; then \
+      ./dw-pipeline.py pipeline; \
+    else \
+      ./dw-pipeline.py pipeline {{dataset}}; \
+    fi
 
 status:
     ./dw-pipeline.py status
 
-embed-all:
-    ./dw-pipeline.py embed-all
+# Embed embeddings; optional dataset argument restricts to a single dataset.
+embed dataset='':
+    if [ "{{dataset}}" = "" ]; then \
+      ./dw-pipeline.py embed; \
+    else \
+      ./dw-pipeline.py embed {{dataset}}; \
+    fi
 
-retrieve-all:
-    ./dw-pipeline.py retrieve-all
+# 1-NN retrieval; optional dataset argument restricts to a single candidate.
+retrieve dataset='':
+    if [ "{{dataset}}" = "" ]; then \
+      ./dw-pipeline.py retrieve; \
+    else \
+      ./dw-pipeline.py retrieve {{dataset}}; \
+    fi
 
 aggregate:
     ./dw-pipeline.py aggregate
 
-clean:
-    rm -rf artifacts/retrieval artifacts/weights
-
-clean-all:
-    rm -rf artifacts
+# Clean artifacts. With a dataset argument only that dataset's artifacts are
+# removed; without an argument, everything is deleted after a confirmation.
+[confirm]
+clean dataset='':
+    if [ "{{dataset}}" = "" ]; then \
+      ./dw-pipeline.py clean; \
+    else \
+      ./dw-pipeline.py clean {{dataset}}; \
+    fi
