@@ -15,25 +15,16 @@ features:
 
 # Reference dataset (queries)
 reference:
-  name: "openimages"
-  root: "/globalwork/bunne/data/openimages/images"
+  name: "path/to/openimages"
+  root: "path/to/openimages/images"
   pattern: "*.jpg"
   batch_size: 1
 
 # Candidate datasets (indices)
 candidates:
   scannetpp:
-    root: "/globalwork/bunne/data/scannetpp/data"
+    root: "path/to/scannetpp/data"
     pattern: "**/dslr/undistorted_images/*.JPG"
-  hypersim:
-    root: "/globalwork/bunne/data/hypersim"
-    pattern: "**/cam_*/color/*.jpg"
-  gta_sfm:
-    root: "/globalwork/bunne/data/GTA-Sfm/data/gta_sfm_clean/train"
-    pattern: "**/colmap/dense/0/processed/images/*.png"
-  seven_scenes:
-    root: "/globalwork/bunne/data/7scenes"
-    pattern: "**/seq-*/frame-*.color.png"
-    max_frames: 10
+
 
 
