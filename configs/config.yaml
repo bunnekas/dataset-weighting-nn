@@ -15,7 +15,7 @@ features:
 
 # Reference dataset (queries)
 reference:
-  name: "path/to/openimages"
+  name: "openimages"
   root: "path/to/openimages/images"
   pattern: "*.jpg"
   batch_size: 1
@@ -25,6 +25,3 @@ candidates:
   scannetpp:
     root: "path/to/scannetpp/data"
     pattern: "**/dslr/undistorted_images/*.JPG"
-
-
-
